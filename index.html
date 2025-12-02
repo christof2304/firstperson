@@ -1310,12 +1310,37 @@
 
           // Load Google 3D Tiles with custom shader for dynamic lighting
           
-          // Simple test shader - should tint everything red if working
+          // Day/Night shader for Google Photorealistic 3D Tiles
+          // Uses sun position to darken tiles on the night side of Earth
           const dayNightShader = new Cesium.CustomShader({
             fragmentShaderText: `
               void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
-                // Simple test: tint everything slightly red
-                material.diffuse = material.diffuse * vec3(1.0, 0.5, 0.5);
+                // Get the fragment's position in world coordinates
+                // We use positionEC (eye coordinates) and transform to world
+                vec4 positionWC = czm_inverseView * vec4(fsInput.attributes.positionEC, 1.0);
+                
+                // Normalize position to get direction from Earth center (surface normal)
+                vec3 surfaceNormal = normalize(positionWC.xyz);
+                
+                // Get sun direction in world coordinates
+                vec3 sunDir = czm_sunDirectionWC;
+                
+                // Calculate how much this point faces the sun
+                // Positive = facing sun (day), Negative = facing away (night)
+                float sunDot = dot(surfaceNormal, sunDir);
+                
+                // Smooth transition for twilight zone
+                // -0.1 to 0.2 creates a nice gradual transition
+                float dayFactor = smoothstep(-0.1, 0.2, sunDot);
+                
+                // Night appearance: darken significantly with slight blue tint
+                vec3 nightColor = material.diffuse * 0.08 + vec3(0.005, 0.005, 0.02);
+                
+                // Day appearance: original colors
+                vec3 dayColor = material.diffuse;
+                
+                // Mix between night and day based on sun position
+                material.diffuse = mix(nightColor, dayColor, dayFactor);
               }
             `
           });
@@ -1334,7 +1359,7 @@
 
           this.viewer.scene.primitives.add(this.tileset);
           
-          console.log('🎨 TEST CustomShader (red tint) applied to tileset');
+          console.log('🌅 Day/Night CustomShader applied to tileset');
 
           this.loadingManager.setProgress(70, 'Initializing Controllers...');
 
