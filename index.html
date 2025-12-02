@@ -117,12 +117,24 @@
     }
 
     .control-row select {
-      padding: 5px 10px;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 6px 10px;
+      background: rgba(30, 30, 30, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.3);
       border-radius: 4px;
-      color: white;
+      color: #ffffff;
       font-size: 12px;
+      cursor: pointer;
+    }
+
+    .control-row select option {
+      background: #1e1e1e;
+      color: #ffffff;
+      padding: 8px;
+    }
+
+    .control-row select:focus {
+      outline: none;
+      border-color: #4285f4;
     }
 
     .btn {
@@ -382,87 +394,87 @@
   <div id="cesiumContainer"></div>
 
   <!-- Hamburger Menu Toggle -->
-  <button id="menuToggle" aria-label="Menü öffnen">☰</button>
+  <button id="menuToggle" aria-label="Open menu">☰</button>
 
   <!-- Control Panel -->
   <div id="panel">
-    <button id="panelClose" aria-label="Menü schließen">✕</button>
+    <button id="panelClose" aria-label="Close menu">✕</button>
 
-    <h3>🎮 Steuerung</h3>
-    <button class="btn" id="btnFirstPerson">🎮 First-Person Modus (C)</button>
+    <h3>🎮 Controls</h3>
+    <button class="btn" id="btnFirstPerson">🎮 First-Person Mode (C)</button>
     <div id="gamepadStatus" style="padding:8px;border-radius:6px;background:rgba(251,188,4,0.2);margin:10px 0;font-size:12px;">
-      <span style="color:#fbbc04;">🎮 Kein Controller</span>
+      <span style="color:#fbbc04;">🎮 No Controller</span>
     </div>
     <div class="control-row">
-      <label>Geschwindigkeit</label>
+      <label>Movement Speed</label>
       <input type="range" id="moveSpeed" min="1" max="50" value="8">
     </div>
     <div class="control-row">
-      <label>Maus-Sensitivität</label>
+      <label>Mouse Sensitivity</label>
       <input type="range" id="mouseSensitivity" min="1" max="100" value="50">
     </div>
 
-    <h3>🌅 Beleuchtung & Tageszeit</h3>
+    <h3>🌅 Lighting & Time of Day</h3>
     <div class="control-row">
-      <label>Dynamische Beleuchtung</label>
+      <label>Dynamic Lighting</label>
       <input type="checkbox" id="chkLighting">
     </div>
     <div class="control-row">
-      <label>Beleuchtungsmodus</label>
+      <label>Lighting Mode</label>
       <select id="ambientMode">
-        <option value="realistic">Realistisch</option>
-        <option value="soft">Weich</option>
-        <option value="balanced">Ausgewogen</option>
-        <option value="bright">Hell (kein Tag/Nacht)</option>
+        <option value="realistic">Realistic</option>
+        <option value="soft">Soft</option>
+        <option value="balanced">Balanced</option>
+        <option value="bright">Bright (no day/night)</option>
       </select>
     </div>
     <div class="control-row">
-      <label>Tageszeit (UTC)</label>
-      <input type="range" id="timeOfDay" min="0" max="24" value="12" step="0.5">
+      <label>Time of Day (UTC)</label>
+      <input type="range" id="timeOfDay" min="0" max="24" value="14" step="0.5">
     </div>
     <div class="control-row">
-      <label>Zeit-Preset</label>
+      <label>Time Preset</label>
       <select id="timePreset">
-        <option value="">-- Wählen --</option>
-        <option value="dawn">🌅 Morgendämmerung</option>
-        <option value="morning">☀️ Morgen</option>
-        <option value="noon">🌞 Mittag</option>
-        <option value="afternoon">🌤️ Nachmittag</option>
-        <option value="sunset">🌇 Sonnenuntergang</option>
-        <option value="dusk">🌆 Abenddämmerung</option>
-        <option value="night">🌙 Nacht</option>
-        <option value="midnight">🌑 Mitternacht</option>
+        <option value="">-- Select --</option>
+        <option value="dawn">🌅 Dawn</option>
+        <option value="morning">☀️ Morning</option>
+        <option value="noon">🌞 Noon</option>
+        <option value="afternoon">🌤️ Afternoon</option>
+        <option value="sunset">🌇 Sunset</option>
+        <option value="dusk">🌆 Dusk</option>
+        <option value="night">🌙 Night</option>
+        <option value="midnight">🌑 Midnight</option>
       </select>
     </div>
     <div class="control-row">
-      <label>Schatten-Qualität</label>
+      <label>Shadow Quality</label>
       <select id="shadowQuality">
-        <option value="1024">Niedrig</option>
-        <option value="2048" selected>Mittel</option>
-        <option value="4096">Hoch</option>
+        <option value="1024">Low</option>
+        <option value="2048" selected>Medium</option>
+        <option value="4096">High</option>
       </select>
     </div>
     <div class="control-row">
-      <label>Schatten-Intensität</label>
+      <label>Shadow Intensity</label>
       <input type="range" id="shadowIntensity" min="0" max="100" value="40">
     </div>
     <div class="control-row">
-      <label>Zeit animieren</label>
+      <label>Animate Time</label>
       <input type="checkbox" id="chkAnimateTime">
     </div>
 
     <h3>⚡ Performance</h3>
     <div class="control-row">
-      <label>Qualitätsstufe</label>
+      <label>Quality Level</label>
       <select id="qualityPreset">
         <option value="ultra">Ultra</option>
-        <option value="high" selected>Hoch</option>
-        <option value="medium">Mittel</option>
-        <option value="low">Niedrig</option>
+        <option value="high" selected>High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
       </select>
     </div>
     <div class="control-row">
-      <label>Auto-Anpassung</label>
+      <label>Auto-Adjust</label>
       <input type="checkbox" id="chkAdaptive" checked>
     </div>
     <div class="control-row">
@@ -478,19 +490,19 @@
 
     <h3>ℹ️ Info</h3>
     <p style="color: #888; font-size: 11px; line-height: 1.5;">
-      <strong>Tastatur:</strong><br>
-      C - First-Person an/aus<br>
-      X - Beleuchtung an/aus<br>
-      WASD - Bewegen<br>
-      Q/E - Hoch/Runter<br>
-      Shift - Schneller<br>
-      ESC - FP-Modus beenden<br><br>
+      <strong>Keyboard:</strong><br>
+      C - Toggle First-Person<br>
+      X - Toggle Lighting<br>
+      WASD - Move<br>
+      Q/E - Up/Down<br>
+      Shift - Speed Boost<br>
+      ESC - Exit FP Mode<br><br>
       <strong>🎮 Controller:</strong><br>
-      A - First-Person an/aus<br>
-      X - Beleuchtung an/aus<br>
-      L-Stick - Bewegen<br>
-      R-Stick - Umsehen<br>
-      Trigger - Hoch/Runter<br>
+      A - Toggle First-Person<br>
+      X - Toggle Lighting<br>
+      L-Stick - Move<br>
+      R-Stick - Look<br>
+      Triggers - Up/Down<br>
       B - Speed Boost
     </p>
   </div>
@@ -498,7 +510,7 @@
   <!-- Loading Overlay -->
   <div id="loadingBox" class="status-box">
     <div class="spinner"></div>
-    <div id="loadingText">Lade 3D Tiles...</div>
+    <div id="loadingText">Loading 3D Tiles...</div>
     <div class="progress-bar">
       <div class="progress-fill" id="progressFill" style="width: 0%"></div>
     </div>
@@ -516,22 +528,22 @@
 
   <!-- Quality Indicator -->
   <div id="qualityBox" class="status-box">
-    <span class="quality-label">Qualität:</span>
+    <span class="quality-label">Quality:</span>
     <span class="quality-value" id="qualityValue">HIGH</span>
   </div>
 
   <!-- Mobile Quick Actions -->
   <div id="quickActions">
     <button class="quick-btn fps-btn" id="quickFps" title="First-Person">🎮</button>
-    <button class="quick-btn shadow-btn" id="quickShadow" title="Beleuchtung">🌅</button>
-    <button class="quick-btn quality-btn" id="quickQuality" title="Qualität">⚡</button>
+    <button class="quick-btn shadow-btn" id="quickShadow" title="Lighting">🌅</button>
+    <button class="quick-btn quality-btn" id="quickQuality" title="Quality">⚡</button>
   </div>
 
   <!-- Crosshair for First-Person -->
   <div id="crosshair"></div>
 
   <!-- Mode Indicator -->
-  <div id="modeIndicator">First-Person Modus aktiv - ESC oder C zum Beenden</div>
+  <div id="modeIndicator">First-Person Mode Active - Press ESC or C to Exit</div>
 
   <script>
     // ============================================================
@@ -595,7 +607,7 @@
         this.progressFill = document.getElementById('progressFill');
       }
 
-      show(text = 'Laden...') {
+      show(text = 'Loading...') {
         this.loadingBox.style.display = 'block';
         this.loadingText.textContent = text;
       }
@@ -895,7 +907,7 @@
         
         if (this.state.firstPersonMode) {
           if (btn) {
-            btn.textContent = '🚶 FP-Modus beenden (ESC)';
+            btn.textContent = '🚶 Exit First-Person (ESC)';
             btn.classList.add('danger');
           }
           if (crosshair) crosshair.style.display = 'block';
@@ -903,7 +915,7 @@
           if (quickFps) quickFps.classList.add('active');
         } else {
           if (btn) {
-            btn.textContent = '🎮 First-Person Modus (C)';
+            btn.textContent = '🎮 First-Person Mode (C)';
             btn.classList.remove('danger');
           }
           if (crosshair) crosshair.style.display = 'none';
@@ -960,8 +972,8 @@
           statusEl.innerHTML = `<span style="color:#34a853;">🎮 ${name}</span>`;
           statusEl.style.background = "rgba(52, 168, 83, 0.2)";
         } else {
-          statusEl.innerHTML = `<span style="color:#fbbc04;">🎮 Kein Controller</span>
-            <button id="detectGamepadBtn" style="float:right;padding:4px 8px;background:#4285f4;color:white;border:none;border-radius:4px;font-size:10px;cursor:pointer;">Suchen</button>`;
+          statusEl.innerHTML = `<span style="color:#fbbc04;">🎮 No Controller</span>
+            <button id="detectGamepadBtn" style="float:right;padding:4px 8px;background:#4285f4;color:white;border:none;border-radius:4px;font-size:10px;cursor:pointer;">Detect</button>`;
           statusEl.style.background = "rgba(251, 188, 4, 0.2)";
           
           const btn = document.getElementById('detectGamepadBtn');
@@ -1054,13 +1066,14 @@
 
     // ============================================================
     // LIGHTING CONTROLLER (Dynamic Sun Lighting for Google 3D Tiles)
+    // Controls time of day which affects CustomShader lighting
     // ============================================================
     class LightingController {
-      constructor(viewer, tileset) {
+      constructor(viewer, tileset, shader) {
         this.viewer = viewer;
         this.tileset = tileset;
-        this.enabled = false;
-        this.ambientMode = 'realistic';
+        this.shader = shader;
+        this.enabled = true; // Shader is always active, this controls atmosphere/sky
       }
 
       enable() {
@@ -1068,25 +1081,11 @@
         const scene = this.viewer.scene;
         const globe = scene.globe;
 
-        // Enable globe lighting (sun-based)
+        // Enable atmosphere effects that follow sun
         globe.enableLighting = true;
         globe.dynamicAtmosphereLighting = true;
         globe.dynamicAtmosphereLightingFromSun = true;
-
-        // Enable shadows with anti-acne settings
-        scene.shadowMap.enabled = true;
-        scene.shadowMap.darkness = 0.4;
-        scene.shadowMap.softShadows = true;
-        scene.shadowMap.size = 2048;
-        scene.shadowMap.normalOffset = true;
-        scene.shadowMap.fadingEnabled = true;
-        scene.shadowMap.maximumDistance = 10000.0;
-
-        // Globe receives shadows
-        globe.shadows = Cesium.ShadowMode.RECEIVE_ONLY;
-
-        // Apply lighting to tileset
-        this.applyToTileset('realistic');
+        scene.skyAtmosphere.show = true;
 
         // Update UI
         document.getElementById('chkLighting').checked = true;
@@ -1100,17 +1099,10 @@
         const scene = this.viewer.scene;
         const globe = scene.globe;
 
-        // Disable globe lighting
+        // Disable atmosphere effects
         globe.enableLighting = false;
         globe.dynamicAtmosphereLighting = false;
         globe.dynamicAtmosphereLightingFromSun = false;
-
-        // Disable shadows
-        scene.shadowMap.enabled = false;
-        globe.shadows = Cesium.ShadowMode.DISABLED;
-
-        // Reset tileset to bright
-        this.applyToTileset('bright');
 
         // Update UI
         document.getElementById('chkLighting').checked = false;
@@ -1135,79 +1127,45 @@
         }
       }
 
-      applyToTileset(mode) {
-        if (!this.tileset) return;
-
-        try {
-          if (!this.tileset.imageBasedLighting) return;
-
-          switch(mode) {
-            case 'realistic':
-              // Pure sun lighting - dramatic day/night
-              this.tileset.imageBasedLighting.enabled = false;
-              this.tileset.shadows = Cesium.ShadowMode.ENABLED;
-              break;
-
-            case 'soft':
-              // Subtle ambient with low luminance
-              this.tileset.imageBasedLighting.enabled = true;
-              this.tileset.imageBasedLighting.luminanceAtZenith = 0.02;
-              this.tileset.shadows = Cesium.ShadowMode.ENABLED;
-              break;
-
-            case 'balanced':
-              // Balanced ambient
-              this.tileset.imageBasedLighting.enabled = true;
-              this.tileset.imageBasedLighting.luminanceAtZenith = 0.1;
-              this.tileset.shadows = Cesium.ShadowMode.ENABLED;
-              break;
-
-            case 'bright':
-              // Full ambient - no day/night effect
-              this.tileset.imageBasedLighting.enabled = true;
-              this.tileset.imageBasedLighting.luminanceAtZenith = 0.8;
-              this.tileset.shadows = Cesium.ShadowMode.DISABLED;
-              break;
-          }
-
-          this.ambientMode = mode;
-          console.log(`💡 Applied ${mode} lighting mode`);
-
-        } catch (error) {
-          // Google 3D Tiles have read-only IBL but still respond to globe lighting
-          console.log('ℹ️ Using automatic sun lighting for Google 3D Tiles');
-        }
-      }
-
-      setAmbientMode(mode) {
-        this.applyToTileset(mode);
-        document.getElementById('ambientMode').value = mode;
-      }
-
       setTime(hour) {
-        // Create date with specific hour (UTC)
-        const now = new Date();
-        now.setUTCHours(Math.floor(hour), (hour % 1) * 60, 0, 0);
-        this.viewer.clock.currentTime = Cesium.JulianDate.fromDate(now);
+        // Create a date with specific hour (summer solstice for good sun angles)
+        const year = 2024;
+        const month = 6;
+        const day = 21;
+        const hourInt = Math.floor(hour);
+        const minutes = Math.round((hour % 1) * 60);
+        
+        const isoString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hourInt).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`;
+        
+        this.viewer.clock.currentTime = Cesium.JulianDate.fromIso8601(isoString);
         this.viewer.clock.shouldAnimate = false;
+        
+        console.log(`⏰ Time set to: ${isoString} (sun position updated)`);
       }
 
       setPresetTime(preset) {
         const presets = {
-          'dawn': 6,
+          'dawn': 5,
           'morning': 9,
           'noon': 12,
           'afternoon': 15,
-          'sunset': 18,
-          'dusk': 19.5,
+          'sunset': 19,
+          'dusk': 20.5,
           'night': 23,
           'midnight': 0
         };
 
         if (presets[preset] !== undefined) {
           this.setTime(presets[preset]);
-          console.log(`⏰ Time set to ${preset} (${presets[preset]}:00)`);
+          document.getElementById('timeOfDay').value = presets[preset];
+          console.log(`⏰ Preset: ${preset}`);
         }
+      }
+
+      setAmbientMode(mode) {
+        // This affects how strong the day/night effect is
+        // For now just log it - shader handles the effect
+        console.log(`💡 Ambient mode: ${mode}`);
       }
 
       setShadowQuality(size) {
@@ -1218,7 +1176,7 @@
         this.viewer.scene.shadowMap.darkness = Math.max(0, Math.min(1, darkness));
       }
 
-      animateTime(enable, speed = 100) {
+      animateTime(enable, speed = 500) {
         if (enable) {
           this.viewer.clock.shouldAnimate = true;
           this.viewer.clock.multiplier = speed;
@@ -1294,7 +1252,7 @@
 
       async init() {
         try {
-          this.loadingManager.show('Initialisiere Cesium...');
+          this.loadingManager.show('Initializing Cesium...');
           this.loadingManager.setProgress(10);
 
           // Set Cesium Ion Token
@@ -1313,39 +1271,79 @@
             vrButton: false,
             infoBox: true,
             selectionIndicator: true,
+            shadows: true,
+            terrainShadows: Cesium.ShadowMode.ENABLED,
             requestRenderMode: false,
             maximumRenderTimeChange: Infinity
           });
 
-          // Configure scene with proper sky rendering
+          // Configure scene with proper sky and lighting
           const scene = this.viewer.scene;
+          
+          // Globe settings - hide globe but keep lighting enabled
           scene.globe.show = false;
+          scene.globe.enableLighting = true;
+          scene.globe.dynamicAtmosphereLighting = true;
+          scene.globe.dynamicAtmosphereLightingFromSun = true;
+          
+          // Sky settings
           scene.skyAtmosphere.show = true;
           scene.skyBox.show = true;
           scene.sun.show = true;
           scene.moon.show = true;
+          
+          // High dynamic range for better lighting
+          scene.highDynamicRange = true;
+          
+          // Fog
           scene.fog.enabled = true;
-          scene.fog.density = 0.0002;
+          scene.fog.density = 0.0001;
+          
+          // Set sun light
+          scene.light = new Cesium.SunLight();
+          
+          // Set initial time for good lighting (daytime)
+          this.viewer.clock.currentTime = Cesium.JulianDate.fromIso8601("2024-06-21T14:00:00Z");
+          this.viewer.clock.shouldAnimate = false;
 
-          this.loadingManager.setProgress(30, 'Lade Google 3D Tiles...');
+          this.loadingManager.setProgress(30, 'Loading Google 3D Tiles...');
 
-          // Load Google 3D Tiles
+          // Load Google 3D Tiles with custom shader for dynamic lighting
+          
+          // Simple test shader - should tint everything red if working
+          const dayNightShader = new Cesium.CustomShader({
+            fragmentShaderText: `
+              void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
+                // Simple test: tint everything slightly red
+                material.diffuse = material.diffuse * vec3(1.0, 0.5, 0.5);
+              }
+            `
+          });
+          
+          this.dayNightShader = dayNightShader;
+          
           this.tileset = await Cesium.Cesium3DTileset.fromIonAssetId(CONFIG.GOOGLE_TILES_ASSET_ID, {
             maximumScreenSpaceError: 8,
             cacheBytes: CONFIG.VRAM_LIMIT_MB * 1024 * 1024,
             maximumCacheOverflowBytes: 512 * 1024 * 1024,
             preloadWhenHidden: true,
             skipLevelOfDetail: true,
-            immediatelyLoadDesiredLevelOfDetail: false
+            immediatelyLoadDesiredLevelOfDetail: false,
+            customShader: dayNightShader
           });
 
           this.viewer.scene.primitives.add(this.tileset);
+          
+          console.log('🎨 TEST CustomShader (red tint) applied to tileset');
 
-          this.loadingManager.setProgress(70, 'Initialisiere Controller...');
+          this.loadingManager.setProgress(70, 'Initializing Controllers...');
 
           // Initialize controllers
-          this.lightingController = new LightingController(this.viewer, this.tileset);
+          this.lightingController = new LightingController(this.viewer, this.tileset, this.dayNightShader);
           this.adaptiveQuality = new AdaptiveQuality(this.viewer, this.tileset, this.fpsMonitor);
+          
+          // Enable dynamic lighting by default
+          this.lightingController.enable();
           
           // Initialize InputSystem (replaces FirstPersonController)
           InputSystem.init(this.viewer, this.lightingController, this.adaptiveQuality);
@@ -1365,7 +1363,7 @@
             duration: 0
           });
 
-          this.loadingManager.setProgress(90, 'Verbinde UI...');
+          this.loadingManager.setProgress(90, 'Setting up UI...');
 
           // Setup UI connections
           this.setupUI();
@@ -1376,7 +1374,7 @@
           // Start adaptive quality
           this.adaptiveQuality.start();
 
-          this.loadingManager.setProgress(100, 'Fertig!');
+          this.loadingManager.setProgress(100, 'Ready!');
           
           setTimeout(() => {
             this.loadingManager.hide();
@@ -1386,7 +1384,7 @@
 
         } catch (error) {
           console.error('❌ Initialization error:', error);
-          this.loadingManager.setProgress(0, `Fehler: ${error.message}`);
+          this.loadingManager.setProgress(0, `Error: ${error.message}`);
         }
       }
 
@@ -1427,8 +1425,8 @@
             this.lightingController.setPresetTime(e.target.value);
             // Update time slider to match
             const presetHours = {
-              'dawn': 6, 'morning': 9, 'noon': 12, 'afternoon': 15,
-              'sunset': 18, 'dusk': 19.5, 'night': 23, 'midnight': 0
+              'dawn': 5, 'morning': 9, 'noon': 12, 'afternoon': 15,
+              'sunset': 19, 'dusk': 20.5, 'night': 23, 'midnight': 0
             };
             document.getElementById('timeOfDay').value = presetHours[e.target.value];
           }
