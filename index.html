@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>3D Viewer - Google Photorealistic Tiles</title>
+  
+  <!-- Cesium JS 1.134 (Latest) -->
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.134/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.134/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* Hamburger Menu Button */
+    #menuToggle {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1001;
+      width: 44px;
+      height: 44px;
+      background: rgba(48, 51, 54, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #menuToggle:hover {
+      background: rgba(66, 133, 244, 0.9);
+    }
+
+    /* Control Panel */
+    #panel {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1000;
+      width: 320px;
+      max-width: calc(100vw - 20px);
+      height: 100%;
+      max-height: 100vh;
+      overflow-y: auto;
+      background: rgba(38, 41, 44, 0.95);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 70px 15px 20px 15px;
+      transform: translateX(-110%);
+      transition: transform 0.3s ease;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #panel.open {
+      transform: translateX(0);
+    }
+
+    #panel h3 {
+      color: #4285f4;
+      font-size: 14px;
+      margin: 20px 0 10px 0;
+      padding-bottom: 5px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #panel h3:first-child {
+      margin-top: 0;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 10px 0;
+      color: #e0e0e0;
+      font-size: 13px;
+    }
+
+    .control-row label {
+      flex: 1;
+    }
+
+    .control-row input[type="range"] {
+      width: 120px;
+      accent-color: #4285f4;
+    }
+
+    .control-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #4285f4;
+    }
+
+    .control-row select {
+      padding: 5px 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      color: white;
+      font-size: 12px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      background: linear-gradient(135deg, #4285f4, #34a853);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(66, 133, 244, 0.4);
+    }
+
+    .btn.danger {
+      background: linear-gradient(135deg, #ea4335, #ff6b6b);
+    }
+
+    .btn.secondary {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Close Button inside Panel */
+    #panelClose {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #panelClose:hover {
+      background: rgba(234, 67, 53, 0.8);
+    }
+
+    /* Status Boxes */
+    .status-box {
+      position: absolute;
+      z-index: 999;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(5px);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: white;
+      pointer-events: none;
+    }
+
+    #fpsBox {
+      bottom: 10px;
+      right: 10px;
+      text-align: right;
+    }
+
+    #fpsBox .fps-value {
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    #fpsBox .fps-value.good { color: #34a853; }
+    #fpsBox .fps-value.medium { color: #fbbc04; }
+    #fpsBox .fps-value.bad { color: #ea4335; }
+
+    #fpsBox .vram-info {
+      font-size: 11px;
+      color: #aaa;
+      margin-top: 4px;
+    }
+
+    #fpsBox .vram-value { color: #4fc3f7; }
+    #fpsBox .vram-limit { color: #888; }
+
+    #loadingBox {
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      padding: 20px 30px;
+    }
+
+    #loadingBox .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #4285f4;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    #loadingBox .progress-bar {
+      width: 200px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    #loadingBox .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4285f4, #34a853);
+      transition: width 0.3s ease;
+    }
+
+    #qualityBox {
+      top: 10px;
+      right: 10px;
+      font-size: 11px;
+      padding: 6px 10px;
+    }
+
+    #qualityBox .quality-label {
+      color: #888;
+    }
+
+    #qualityBox .quality-value {
+      color: #4fc3f7;
+      font-weight: bold;
+    }
+
+    /* Mobile Quick Actions */
+    #quickActions {
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 998;
+      display: none;
+      gap: 15px;
+    }
+
+    .quick-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .quick-btn:active {
+      transform: scale(0.95);
+    }
+
+    .quick-btn.fps-btn { background: linear-gradient(135deg, #34a853, #4caf50); }
+    .quick-btn.shadow-btn { background: linear-gradient(135deg, #ff9800, #f57c00); }
+    .quick-btn.quality-btn { background: linear-gradient(135deg, #9c27b0, #7b1fa2); }
+
+    .quick-btn.active {
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+    }
+
+    /* Mobile Styles */
+    @media (max-width: 768px) {
+      #quickActions {
+        display: flex;
+      }
+
+      #panel {
+        width: calc(100vw - 40px);
+      }
+
+      #qualityBox {
+        top: 60px;
+        right: 10px;
+      }
+    }
+
+    /* First Person Crosshair */
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 997;
+      pointer-events: none;
+      display: none;
+    }
+
+    #crosshair::before,
+    #crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(255, 255, 255, 0.8);
+    }
+
+    #crosshair::before {
+      width: 20px;
+      height: 2px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    #crosshair::after {
+      width: 2px;
+      height: 20px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Mode Indicator */
+    #modeIndicator {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 998;
+      background: rgba(66, 133, 244, 0.9);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      color: white;
+      display: none;
+    }
+
+    /* Hide Cesium default widgets we don't need */
+    .cesium-viewer-toolbar {
+      display: none !important;
+    }
+
+    .cesium-viewer-animationContainer,
+    .cesium-viewer-timelineContainer {
+      display: none !important;
+    }
+
+    .cesium-viewer-bottom {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+
+  <!-- Hamburger Menu Toggle -->
+  <button id="menuToggle" aria-label="Menü öffnen">☰</button>
+
+  <!-- Control Panel -->
+  <div id="panel">
+    <button id="panelClose" aria-label="Menü schließen">✕</button>
+
+    <h3>🎮 Steuerung</h3>
+    <button class="btn" id="btnFirstPerson">First-Person Modus</button>
+    <div class="control-row">
+      <label>Geschwindigkeit</label>
+      <input type="range" id="moveSpeed" min="1" max="100" value="20">
+    </div>
+    <div class="control-row">
+      <label>Maus-Sensitivität</label>
+      <input type="range" id="mouseSensitivity" min="1" max="100" value="50">
+    </div>
+
+    <h3>🌅 Schatten & Licht</h3>
+    <div class="control-row">
+      <label>Schatten aktivieren</label>
+      <input type="checkbox" id="chkShadows">
+    </div>
+    <div class="control-row">
+      <label>Tageszeit</label>
+      <input type="range" id="timeOfDay" min="0" max="24" value="12" step="0.5">
+    </div>
+    <div class="control-row">
+      <label>Schatten-Qualität</label>
+      <select id="shadowQuality">
+        <option value="1024">Niedrig</option>
+        <option value="2048" selected>Mittel</option>
+        <option value="4096">Hoch</option>
+      </select>
+    </div>
+
+    <h3>⚡ Performance</h3>
+    <div class="control-row">
+      <label>Qualitätsstufe</label>
+      <select id="qualityPreset">
+        <option value="ultra">Ultra</option>
+        <option value="high" selected>Hoch</option>
+        <option value="medium">Mittel</option>
+        <option value="low">Niedrig</option>
+      </select>
+    </div>
+    <div class="control-row">
+      <label>Auto-Anpassung</label>
+      <input type="checkbox" id="chkAdaptive" checked>
+    </div>
+    <div class="control-row">
+      <label>VRAM Limit (MB)</label>
+      <input type="range" id="vramLimit" min="512" max="8192" value="2048" step="256">
+    </div>
+
+    <h3>📍 Navigation</h3>
+    <button class="btn secondary" id="btnNYC">New York</button>
+    <button class="btn secondary" id="btnParis">Paris</button>
+    <button class="btn secondary" id="btnTokyo">Tokyo</button>
+    <button class="btn secondary" id="btnDubai">Dubai</button>
+
+    <h3>ℹ️ Info</h3>
+    <p style="color: #888; font-size: 11px; line-height: 1.5;">
+      WASD/Pfeiltasten: Bewegen<br>
+      Maus: Umsehen (im FP-Modus)<br>
+      Q/E: Hoch/Runter<br>
+      Shift: Schneller<br>
+      ESC: FP-Modus beenden<br>
+      Gamepad wird unterstützt
+    </p>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingBox" class="status-box">
+    <div class="spinner"></div>
+    <div id="loadingText">Lade 3D Tiles...</div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+    </div>
+  </div>
+
+  <!-- FPS Display -->
+  <div id="fpsBox" class="status-box">
+    <div class="fps-label">FPS</div>
+    <div class="fps-value good" id="fpsValue">--</div>
+    <div class="vram-info">
+      VRAM: <span class="vram-value" id="vramUsed">0</span> MB
+      <br>Limit: <span class="vram-limit" id="vramLimitDisplay">2048</span> MB
+    </div>
+  </div>
+
+  <!-- Quality Indicator -->
+  <div id="qualityBox" class="status-box">
+    <span class="quality-label">Qualität:</span>
+    <span class="quality-value" id="qualityValue">HIGH</span>
+  </div>
+
+  <!-- Mobile Quick Actions -->
+  <div id="quickActions">
+    <button class="quick-btn fps-btn" id="quickFps" title="First-Person">🎮</button>
+    <button class="quick-btn shadow-btn" id="quickShadow" title="Schatten">☀️</button>
+    <button class="quick-btn quality-btn" id="quickQuality" title="Qualität">⚡</button>
+  </div>
+
+  <!-- Crosshair for First-Person -->
+  <div id="crosshair"></div>
+
+  <!-- Mode Indicator -->
+  <div id="modeIndicator">First-Person Modus - ESC zum Beenden</div>
+
+  <script>
+    // ============================================================
+    // CONFIGURATION
+    // ============================================================
+    const CONFIG = {
+      // Cesium Ion Access Token
+      CESIUM_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJmNWFjNDYxZC0yN2U5LTQ0MGYtYWY1Ny1lN2VmNGJiNjVlYTQiLCJpZCI6MjYzNTkwLCJpYXQiOjE3NjE3MzIzOTh9.HsP4Aq5jS6OiRwUXc8uRv6nwbrTcx8ugaGSkLiTYhO8",
+      
+      // Google 3D Tiles Asset ID
+      GOOGLE_TILES_ASSET_ID: 2275207,
+      
+      // Startposition (NYC Battery Park)
+      START_LOCATION: {
+        longitude: -74.0150,
+        latitude: 40.7033,
+        height: 350
+      },
+      
+      // Performance Settings
+      VRAM_LIMIT_MB: 2048,
+      TARGET_FPS: 30,
+      
+      // Quality Presets
+      QUALITY_PRESETS: {
+        ultra: { sse: 4, vram: 4096, shadows: true },
+        high: { sse: 8, vram: 2048, shadows: true },
+        medium: { sse: 16, vram: 1024, shadows: false },
+        low: { sse: 32, vram: 512, shadows: false }
+      }
+    };
+
+    // ============================================================
+    // UTILITIES
+    // ============================================================
+    const Utils = {
+      isMobile() {
+        return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      },
+
+      clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      },
+
+      lerp(a, b, t) {
+        return a + (b - a) * t;
+      },
+
+      formatNumber(num) {
+        return Math.round(num).toLocaleString();
+      }
+    };
+
+    // ============================================================
+    // LOADING MANAGER
+    // ============================================================
+    class LoadingManager {
+      constructor() {
+        this.loadingBox = document.getElementById('loadingBox');
+        this.loadingText = document.getElementById('loadingText');
+        this.progressFill = document.getElementById('progressFill');
+      }
+
+      show(text = 'Laden...') {
+        this.loadingBox.style.display = 'block';
+        this.loadingText.textContent = text;
+      }
+
+      hide() {
+        this.loadingBox.style.display = 'none';
+      }
+
+      setProgress(percent, text) {
+        this.progressFill.style.width = `${percent}%`;
+        if (text) this.loadingText.textContent = text;
+      }
+    }
+
+    // ============================================================
+    // FPS MONITOR
+    // ============================================================
+    class FPSMonitor {
+      constructor() {
+        this.fps = 0;
+        this.frames = 0;
+        this.lastTime = performance.now();
+        this.fpsValue = document.getElementById('fpsValue');
+        this.vramUsed = document.getElementById('vramUsed');
+        this.vramLimitDisplay = document.getElementById('vramLimitDisplay');
+      }
+
+      update() {
+        this.frames++;
+        const now = performance.now();
+        const delta = now - this.lastTime;
+
+        if (delta >= 1000) {
+          this.fps = Math.round((this.frames * 1000) / delta);
+          this.frames = 0;
+          this.lastTime = now;
+          this.updateDisplay();
+        }
+      }
+
+      updateDisplay() {
+        this.fpsValue.textContent = this.fps;
+        this.fpsValue.className = 'fps-value ' + 
+          (this.fps >= 50 ? 'good' : this.fps >= 30 ? 'medium' : 'bad');
+      }
+
+      updateVRAM(used, limit) {
+        this.vramUsed.textContent = Math.round(used);
+        this.vramLimitDisplay.textContent = Math.round(limit);
+      }
+
+      getFPS() {
+        return this.fps;
+      }
+    }
+
+    // ============================================================
+    // ADAPTIVE QUALITY
+    // ============================================================
+    class AdaptiveQuality {
+      constructor(viewer, tileset, fpsMonitor) {
+        this.viewer = viewer;
+        this.tileset = tileset;
+        this.fpsMonitor = fpsMonitor;
+        this.enabled = true;
+        this.currentPreset = 'high';
+        this.qualityValue = document.getElementById('qualityValue');
+        this.qualitySelect = document.getElementById('qualityPreset');
+        this.checkInterval = null;
+      }
+
+      start() {
+        this.checkInterval = setInterval(() => this.check(), 3000);
+      }
+
+      stop() {
+        if (this.checkInterval) {
+          clearInterval(this.checkInterval);
+          this.checkInterval = null;
+        }
+      }
+
+      check() {
+        if (!this.enabled) return;
+
+        const fps = this.fpsMonitor.getFPS();
+        const presets = ['low', 'medium', 'high', 'ultra'];
+        const currentIndex = presets.indexOf(this.currentPreset);
+
+        if (fps < 25 && currentIndex > 0) {
+          this.setPreset(presets[currentIndex - 1]);
+        } else if (fps > 55 && currentIndex < presets.length - 1) {
+          this.setPreset(presets[currentIndex + 1]);
+        }
+      }
+
+      setPreset(presetName) {
+        const preset = CONFIG.QUALITY_PRESETS[presetName];
+        if (!preset) return;
+
+        this.currentPreset = presetName;
+        this.tileset.maximumScreenSpaceError = preset.sse;
+        this.tileset.cacheBytes = preset.vram * 1024 * 1024;
+        
+        this.qualityValue.textContent = presetName.toUpperCase();
+        this.qualitySelect.value = presetName;
+
+        console.log(`Quality: ${presetName.toUpperCase()} (SSE: ${preset.sse})`);
+      }
+
+      setEnabled(enabled) {
+        this.enabled = enabled;
+        if (enabled) {
+          this.start();
+        } else {
+          this.stop();
+        }
+      }
+    }
+
+    // ============================================================
+    // FIRST PERSON CONTROLLER
+    // ============================================================
+    class FirstPersonController {
+      constructor(viewer) {
+        this.viewer = viewer;
+        this.enabled = false;
+        this.state = {
+          position: null,
+          heading: 0,
+          pitch: -15,
+          moveSpeed: 20,
+          sensitivity: 0.15
+        };
+        this.keys = {};
+        this.crosshair = document.getElementById('crosshair');
+        this.modeIndicator = document.getElementById('modeIndicator');
+        this.lastTouchX = 0;
+        this.lastTouchY = 0;
+
+        this.setupEventListeners();
+      }
+
+      setupEventListeners() {
+        document.addEventListener('keydown', (e) => this.onKeyDown(e));
+        document.addEventListener('keyup', (e) => this.onKeyUp(e));
+
+        const canvas = this.viewer.canvas;
+        canvas.addEventListener('click', () => {
+          if (this.enabled && !Utils.isMobile()) {
+            canvas.requestPointerLock();
+          }
+        });
+
+        document.addEventListener('mousemove', (e) => this.onMouseMove(e));
+        document.addEventListener('pointerlockchange', () => this.onPointerLockChange());
+
+        // Touch controls for mobile
+        canvas.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: false });
+        canvas.addEventListener('touchmove', (e) => this.onTouchMove(e), { passive: false });
+      }
+
+      onKeyDown(e) {
+        this.keys[e.code] = true;
+        
+        if (e.code === 'Escape' && this.enabled) {
+          this.disable();
+        }
+      }
+
+      onKeyUp(e) {
+        this.keys[e.code] = false;
+      }
+
+      onMouseMove(e) {
+        if (!this.enabled || !document.pointerLockElement) return;
+
+        this.state.heading -= e.movementX * this.state.sensitivity;
+        this.state.pitch -= e.movementY * this.state.sensitivity;
+        this.state.pitch = Utils.clamp(this.state.pitch, -89, 89);
+      }
+
+      onPointerLockChange() {
+        if (!document.pointerLockElement && this.enabled && !Utils.isMobile()) {
+          // Pointer unlocked but still in FP mode
+        }
+      }
+
+      onTouchStart(e) {
+        if (!this.enabled || e.touches.length === 0) return;
+        this.lastTouchX = e.touches[0].clientX;
+        this.lastTouchY = e.touches[0].clientY;
+      }
+
+      onTouchMove(e) {
+        if (!this.enabled || e.touches.length === 0) return;
+        e.preventDefault();
+
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - this.lastTouchX;
+        const deltaY = touch.clientY - this.lastTouchY;
+
+        this.state.heading -= deltaX * this.state.sensitivity * 0.5;
+        this.state.pitch -= deltaY * this.state.sensitivity * 0.5;
+        this.state.pitch = Utils.clamp(this.state.pitch, -89, 89);
+
+        this.lastTouchX = touch.clientX;
+        this.lastTouchY = touch.clientY;
+      }
+
+      enable() {
+        const camera = this.viewer.camera;
+        this.state.position = Cesium.Cartographic.fromCartesian(camera.position);
+        this.state.heading = Cesium.Math.toDegrees(camera.heading);
+        this.state.pitch = Cesium.Math.toDegrees(camera.pitch);
+
+        this.viewer.scene.screenSpaceCameraController.enableInputs = false;
+        this.enabled = true;
+        this.crosshair.style.display = 'block';
+        this.modeIndicator.style.display = 'block';
+
+        if (!Utils.isMobile()) {
+          this.viewer.canvas.requestPointerLock();
+        }
+
+        document.getElementById('btnFirstPerson').textContent = 'FP-Modus beenden';
+        document.getElementById('quickFps').classList.add('active');
+      }
+
+      disable() {
+        this.viewer.scene.screenSpaceCameraController.enableInputs = true;
+        this.enabled = false;
+        this.crosshair.style.display = 'none';
+        this.modeIndicator.style.display = 'none';
+
+        if (document.pointerLockElement) {
+          document.exitPointerLock();
+        }
+
+        document.getElementById('btnFirstPerson').textContent = 'First-Person Modus';
+        document.getElementById('quickFps').classList.remove('active');
+      }
+
+      toggle() {
+        if (this.enabled) {
+          this.disable();
+        } else {
+          this.enable();
+        }
+      }
+
+      update(deltaTime) {
+        if (!this.enabled) return;
+
+        const speed = this.state.moveSpeed * (this.keys['ShiftLeft'] ? 3 : 1);
+        let dx = 0, dy = 0, dz = 0;
+
+        if (this.keys['KeyW'] || this.keys['ArrowUp']) dy = 1;
+        if (this.keys['KeyS'] || this.keys['ArrowDown']) dy = -1;
+        if (this.keys['KeyA'] || this.keys['ArrowLeft']) dx = -1;
+        if (this.keys['KeyD'] || this.keys['ArrowRight']) dx = 1;
+        if (this.keys['KeyQ']) dz = -1;
+        if (this.keys['KeyE'] || this.keys['Space']) dz = 1;
+
+        const headingRad = Cesium.Math.toRadians(this.state.heading);
+        const pitchRad = Cesium.Math.toRadians(this.state.pitch);
+
+        const moveX = (dx * Math.cos(headingRad) - dy * Math.sin(headingRad)) * speed * deltaTime;
+        const moveY = (dx * Math.sin(headingRad) + dy * Math.cos(headingRad)) * speed * deltaTime;
+        const moveZ = dz * speed * deltaTime;
+
+        this.state.position.longitude += Cesium.Math.toRadians(moveX * 0.00001);
+        this.state.position.latitude += Cesium.Math.toRadians(moveY * 0.00001);
+        this.state.position.height += moveZ;
+        this.state.position.height = Math.max(2, this.state.position.height);
+
+        this.viewer.camera.setView({
+          destination: Cesium.Cartesian3.fromRadians(
+            this.state.position.longitude,
+            this.state.position.latitude,
+            this.state.position.height
+          ),
+          orientation: {
+            heading: Cesium.Math.toRadians(this.state.heading),
+            pitch: Cesium.Math.toRadians(this.state.pitch),
+            roll: 0
+          }
+        });
+      }
+
+      setMoveSpeed(speed) {
+        this.state.moveSpeed = speed;
+      }
+
+      setSensitivity(sensitivity) {
+        this.state.sensitivity = sensitivity / 100;
+      }
+    }
+
+    // ============================================================
+    // SHADOW CONTROLLER
+    // ============================================================
+    class ShadowController {
+      constructor(viewer) {
+        this.viewer = viewer;
+        this.enabled = false;
+      }
+
+      setEnabled(enabled) {
+        this.enabled = enabled;
+        this.viewer.shadows = enabled;
+        this.viewer.terrainShadows = enabled ? Cesium.ShadowMode.RECEIVE_ONLY : Cesium.ShadowMode.DISABLED;
+        
+        document.getElementById('chkShadows').checked = enabled;
+        
+        if (enabled) {
+          document.getElementById('quickShadow').classList.add('active');
+        } else {
+          document.getElementById('quickShadow').classList.remove('active');
+        }
+      }
+
+      toggle() {
+        this.setEnabled(!this.enabled);
+      }
+
+      setTime(hour) {
+        const now = new Date();
+        now.setHours(Math.floor(hour), (hour % 1) * 60, 0);
+        this.viewer.clock.currentTime = Cesium.JulianDate.fromDate(now);
+      }
+
+      setQuality(size) {
+        this.viewer.shadowMap.size = parseInt(size);
+      }
+    }
+
+    // ============================================================
+    // UI CONTROLLER
+    // ============================================================
+    class UIController {
+      constructor() {
+        this.panel = document.getElementById('panel');
+        this.menuToggle = document.getElementById('menuToggle');
+        this.panelClose = document.getElementById('panelClose');
+        this.quickActions = document.getElementById('quickActions');
+        this.isPanelOpen = false;
+
+        this.setupEventListeners();
+      }
+
+      setupEventListeners() {
+        this.menuToggle.addEventListener('click', () => this.togglePanel());
+        this.panelClose.addEventListener('click', () => this.closePanel());
+
+        // Close panel when clicking outside
+        document.addEventListener('click', (e) => {
+          if (this.isPanelOpen && 
+              !this.panel.contains(e.target) && 
+              !this.menuToggle.contains(e.target)) {
+            this.closePanel();
+          }
+        });
+      }
+
+      togglePanel() {
+        this.isPanelOpen = !this.isPanelOpen;
+        this.panel.classList.toggle('open', this.isPanelOpen);
+        this.menuToggle.textContent = this.isPanelOpen ? '✕' : '☰';
+      }
+
+      closePanel() {
+        this.isPanelOpen = false;
+        this.panel.classList.remove('open');
+        this.menuToggle.textContent = '☰';
+      }
+
+      openPanel() {
+        this.isPanelOpen = true;
+        this.panel.classList.add('open');
+        this.menuToggle.textContent = '✕';
+      }
+    }
+
+    // ============================================================
+    // MAIN APPLICATION
+    // ============================================================
+    class App {
+      constructor() {
+        this.viewer = null;
+        this.tileset = null;
+        this.loadingManager = new LoadingManager();
+        this.fpsMonitor = new FPSMonitor();
+        this.uiController = new UIController();
+        this.fpController = null;
+        this.shadowController = null;
+        this.adaptiveQuality = null;
+        this.lastTime = performance.now();
+      }
+
+      async init() {
+        try {
+          this.loadingManager.show('Initialisiere Cesium...');
+          this.loadingManager.setProgress(10);
+
+          // Set Cesium Ion Token
+          Cesium.Ion.defaultAccessToken = CONFIG.CESIUM_TOKEN;
+
+          // Create Viewer
+          this.viewer = new Cesium.Viewer('cesiumContainer', {
+            timeline: false,
+            animation: false,
+            baseLayerPicker: false,
+            geocoder: false,
+            homeButton: false,
+            sceneModePicker: false,
+            navigationHelpButton: false,
+            fullscreenButton: false,
+            vrButton: false,
+            infoBox: false,
+            selectionIndicator: false,
+            terrainProvider: undefined,
+            requestRenderMode: false,
+            maximumRenderTimeChange: Infinity
+          });
+
+          // Configure scene
+          const scene = this.viewer.scene;
+          scene.globe.show = false;
+          scene.skyAtmosphere.show = true;
+          scene.fog.enabled = true;
+          scene.fog.density = 0.0002;
+
+          this.loadingManager.setProgress(30, 'Lade Google 3D Tiles...');
+
+          // Load Google 3D Tiles
+          this.tileset = await Cesium.Cesium3DTileset.fromIonAssetId(CONFIG.GOOGLE_TILES_ASSET_ID, {
+            maximumScreenSpaceError: 8,
+            cacheBytes: CONFIG.VRAM_LIMIT_MB * 1024 * 1024,
+            maximumCacheOverflowBytes: 512 * 1024 * 1024,
+            preloadWhenHidden: true,
+            skipLevelOfDetail: true,
+            immediatelyLoadDesiredLevelOfDetail: false
+          });
+
+          this.viewer.scene.primitives.add(this.tileset);
+
+          this.loadingManager.setProgress(70, 'Initialisiere Controller...');
+
+          // Initialize controllers
+          this.fpController = new FirstPersonController(this.viewer);
+          this.shadowController = new ShadowController(this.viewer);
+          this.adaptiveQuality = new AdaptiveQuality(this.viewer, this.tileset, this.fpsMonitor);
+
+          // Fly to start location
+          this.viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(
+              CONFIG.START_LOCATION.longitude,
+              CONFIG.START_LOCATION.latitude,
+              CONFIG.START_LOCATION.height
+            ),
+            orientation: {
+              heading: Cesium.Math.toRadians(0),
+              pitch: Cesium.Math.toRadians(-25),
+              roll: 0
+            },
+            duration: 0
+          });
+
+          this.loadingManager.setProgress(90, 'Verbinde UI...');
+
+          // Setup UI connections
+          this.setupUI();
+
+          // Start render loop
+          this.viewer.scene.postRender.addEventListener(() => this.update());
+
+          // Start adaptive quality
+          this.adaptiveQuality.start();
+
+          this.loadingManager.setProgress(100, 'Fertig!');
+          
+          setTimeout(() => {
+            this.loadingManager.hide();
+          }, 500);
+
+          console.log('✅ 3D Viewer initialized successfully');
+
+        } catch (error) {
+          console.error('❌ Initialization error:', error);
+          this.loadingManager.setProgress(0, `Fehler: ${error.message}`);
+        }
+      }
+
+      setupUI() {
+        // First-Person Button
+        document.getElementById('btnFirstPerson').addEventListener('click', () => {
+          this.fpController.toggle();
+        });
+
+        // Move Speed
+        document.getElementById('moveSpeed').addEventListener('input', (e) => {
+          this.fpController.setMoveSpeed(parseInt(e.target.value));
+        });
+
+        // Mouse Sensitivity
+        document.getElementById('mouseSensitivity').addEventListener('input', (e) => {
+          this.fpController.setSensitivity(parseInt(e.target.value));
+        });
+
+        // Shadows
+        document.getElementById('chkShadows').addEventListener('change', (e) => {
+          this.shadowController.setEnabled(e.target.checked);
+        });
+
+        // Time of Day
+        document.getElementById('timeOfDay').addEventListener('input', (e) => {
+          this.shadowController.setTime(parseFloat(e.target.value));
+        });
+
+        // Shadow Quality
+        document.getElementById('shadowQuality').addEventListener('change', (e) => {
+          this.shadowController.setQuality(e.target.value);
+        });
+
+        // Quality Preset
+        document.getElementById('qualityPreset').addEventListener('change', (e) => {
+          this.adaptiveQuality.setPreset(e.target.value);
+        });
+
+        // Adaptive Quality Toggle
+        document.getElementById('chkAdaptive').addEventListener('change', (e) => {
+          this.adaptiveQuality.setEnabled(e.target.checked);
+        });
+
+        // VRAM Limit
+        document.getElementById('vramLimit').addEventListener('input', (e) => {
+          const limit = parseInt(e.target.value);
+          this.tileset.cacheBytes = limit * 1024 * 1024;
+          this.fpsMonitor.updateVRAM(0, limit);
+        });
+
+        // Navigation buttons
+        const locations = {
+          btnNYC: { lon: -74.0060, lat: 40.7128, height: 400, name: 'New York' },
+          btnParis: { lon: 2.2945, lat: 48.8584, height: 300, name: 'Paris' },
+          btnTokyo: { lon: 139.6917, lat: 35.6895, height: 400, name: 'Tokyo' },
+          btnDubai: { lon: 55.2744, lat: 25.1972, height: 500, name: 'Dubai' }
+        };
+
+        Object.entries(locations).forEach(([btnId, loc]) => {
+          document.getElementById(btnId).addEventListener('click', () => {
+            this.flyTo(loc.lon, loc.lat, loc.height);
+          });
+        });
+
+        // Quick Actions (Mobile)
+        document.getElementById('quickFps').addEventListener('click', () => {
+          this.fpController.toggle();
+        });
+
+        document.getElementById('quickShadow').addEventListener('click', () => {
+          this.shadowController.toggle();
+        });
+
+        document.getElementById('quickQuality').addEventListener('click', () => {
+          const presets = ['low', 'medium', 'high', 'ultra'];
+          const currentIndex = presets.indexOf(this.adaptiveQuality.currentPreset);
+          const nextIndex = (currentIndex + 1) % presets.length;
+          this.adaptiveQuality.setPreset(presets[nextIndex]);
+        });
+
+        // Initialize VRAM display
+        this.fpsMonitor.updateVRAM(0, CONFIG.VRAM_LIMIT_MB);
+      }
+
+      flyTo(lon, lat, height) {
+        this.viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
+          orientation: {
+            heading: 0,
+            pitch: Cesium.Math.toRadians(-25),
+            roll: 0
+          },
+          duration: 2
+        });
+      }
+
+      update() {
+        const now = performance.now();
+        const deltaTime = (now - this.lastTime) / 1000;
+        this.lastTime = now;
+
+        // Update FPS
+        this.fpsMonitor.update();
+
+        // Update First-Person Controller
+        this.fpController.update(deltaTime);
+
+        // Update VRAM display
+        if (this.tileset) {
+          const usedBytes = this.tileset.statistics?.usedBytes || 0;
+          const usedMB = usedBytes / (1024 * 1024);
+          this.fpsMonitor.updateVRAM(usedMB, this.tileset.cacheBytes / (1024 * 1024));
+        }
+      }
+    }
+
+    // ============================================================
+    // START APPLICATION
+    // ============================================================
+    const app = new App();
+    app.init();
+  </script>
+</body>
+</html>
