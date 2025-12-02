@@ -788,7 +788,7 @@
             const deltaX = touch.clientX - lastTouchX;
             const deltaY = touch.clientY - lastTouchY;
             
-            this.state.heading -= deltaX * this.config.mouseSensitivity * 0.5;
+            this.state.heading += deltaX * this.config.mouseSensitivity * 0.5;
             this.state.pitch -= deltaY * this.config.mouseSensitivity * 0.5;
             this.state.pitch = Utils.clamp(this.state.pitch, -Math.PI/2, Math.PI/2);
             
@@ -848,7 +848,7 @@
       
       onMouseMove(e) {
         if (!this.state.firstPersonMode || document.pointerLockElement !== this.canvas) return;
-        this.state.heading -= e.movementX * this.config.mouseSensitivity;
+        this.state.heading += e.movementX * this.config.mouseSensitivity;
         this.state.pitch -= e.movementY * this.config.mouseSensitivity;
         this.state.pitch = Utils.clamp(this.state.pitch, -Math.PI/2, Math.PI/2);
         this.camera.setView({ orientation: { heading: this.state.heading, pitch: this.state.pitch, roll: 0 }});
