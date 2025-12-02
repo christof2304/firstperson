@@ -189,7 +189,7 @@
     }
 
     #fpsBox {
-      bottom: 10px;
+      bottom: 140px;
       right: 10px;
       text-align: right;
     }
@@ -251,7 +251,7 @@
 
     #qualityBox {
       top: 10px;
-      right: 10px;
+      right: 320px;
       font-size: 11px;
       padding: 6px 10px;
     }
@@ -268,7 +268,7 @@
     /* Mobile Quick Actions */
     #quickActions {
       position: absolute;
-      bottom: 80px;
+      bottom: 160px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 998;
@@ -314,8 +314,12 @@
       }
 
       #qualityBox {
-        top: 60px;
-        right: 10px;
+        top: 10px;
+        right: 50px;
+      }
+
+      #fpsBox {
+        bottom: 140px;
       }
     }
 
@@ -368,18 +372,9 @@
       display: none;
     }
 
-    /* Hide Cesium default widgets we don't need */
-    .cesium-viewer-toolbar {
-      display: none !important;
-    }
-
-    .cesium-viewer-animationContainer,
-    .cesium-viewer-timelineContainer {
-      display: none !important;
-    }
-
+    /* Cesium viewer bottom credit styling */
     .cesium-viewer-bottom {
-      display: none !important;
+      background: transparent !important;
     }
   </style>
 </head>
@@ -404,14 +399,37 @@
       <input type="range" id="mouseSensitivity" min="1" max="100" value="50">
     </div>
 
-    <h3>🌅 Schatten & Licht</h3>
+    <h3>🌅 Beleuchtung & Tageszeit</h3>
     <div class="control-row">
-      <label>Schatten aktivieren</label>
-      <input type="checkbox" id="chkShadows">
+      <label>Dynamische Beleuchtung</label>
+      <input type="checkbox" id="chkLighting">
     </div>
     <div class="control-row">
-      <label>Tageszeit</label>
+      <label>Beleuchtungsmodus</label>
+      <select id="ambientMode">
+        <option value="realistic">Realistisch</option>
+        <option value="soft">Weich</option>
+        <option value="balanced">Ausgewogen</option>
+        <option value="bright">Hell (kein Tag/Nacht)</option>
+      </select>
+    </div>
+    <div class="control-row">
+      <label>Tageszeit (UTC)</label>
       <input type="range" id="timeOfDay" min="0" max="24" value="12" step="0.5">
+    </div>
+    <div class="control-row">
+      <label>Zeit-Preset</label>
+      <select id="timePreset">
+        <option value="">-- Wählen --</option>
+        <option value="dawn">🌅 Morgendämmerung</option>
+        <option value="morning">☀️ Morgen</option>
+        <option value="noon">🌞 Mittag</option>
+        <option value="afternoon">🌤️ Nachmittag</option>
+        <option value="sunset">🌇 Sonnenuntergang</option>
+        <option value="dusk">🌆 Abenddämmerung</option>
+        <option value="night">🌙 Nacht</option>
+        <option value="midnight">🌑 Mitternacht</option>
+      </select>
     </div>
     <div class="control-row">
       <label>Schatten-Qualität</label>
@@ -420,6 +438,14 @@
         <option value="2048" selected>Mittel</option>
         <option value="4096">Hoch</option>
       </select>
+    </div>
+    <div class="control-row">
+      <label>Schatten-Intensität</label>
+      <input type="range" id="shadowIntensity" min="0" max="100" value="40">
+    </div>
+    <div class="control-row">
+      <label>Zeit animieren</label>
+      <input type="checkbox" id="chkAnimateTime">
     </div>
 
     <h3>⚡ Performance</h3>
@@ -449,12 +475,16 @@
 
     <h3>ℹ️ Info</h3>
     <p style="color: #888; font-size: 11px; line-height: 1.5;">
+      <strong>Steuerung:</strong><br>
       WASD/Pfeiltasten: Bewegen<br>
       Maus: Umsehen (im FP-Modus)<br>
       Q/E: Hoch/Runter<br>
       Shift: Schneller<br>
-      ESC: FP-Modus beenden<br>
-      Gamepad wird unterstützt
+      ESC: FP-Modus beenden<br><br>
+      <strong>Beleuchtung:</strong><br>
+      Aktiviere "Dynamische Beleuchtung"<br>
+      für realistischen Tag/Nacht-Zyklus.<br>
+      Nachts wird es dunkel mit Sternen! 🌙
     </p>
   </div>
 
@@ -486,7 +516,7 @@
   <!-- Mobile Quick Actions -->
   <div id="quickActions">
     <button class="quick-btn fps-btn" id="quickFps" title="First-Person">🎮</button>
-    <button class="quick-btn shadow-btn" id="quickShadow" title="Schatten">☀️</button>
+    <button class="quick-btn shadow-btn" id="quickShadow" title="Beleuchtung">🌅</button>
     <button class="quick-btn quality-btn" id="quickQuality" title="Qualität">⚡</button>
   </div>
 
@@ -859,40 +889,179 @@
     }
 
     // ============================================================
-    // SHADOW CONTROLLER
+    // LIGHTING CONTROLLER (Dynamic Sun Lighting for Google 3D Tiles)
     // ============================================================
-    class ShadowController {
-      constructor(viewer) {
+    class LightingController {
+      constructor(viewer, tileset) {
         this.viewer = viewer;
+        this.tileset = tileset;
         this.enabled = false;
+        this.ambientMode = 'realistic';
       }
 
-      setEnabled(enabled) {
-        this.enabled = enabled;
-        this.viewer.shadows = enabled;
-        this.viewer.terrainShadows = enabled ? Cesium.ShadowMode.RECEIVE_ONLY : Cesium.ShadowMode.DISABLED;
-        
-        document.getElementById('chkShadows').checked = enabled;
-        
-        if (enabled) {
-          document.getElementById('quickShadow').classList.add('active');
-        } else {
-          document.getElementById('quickShadow').classList.remove('active');
-        }
+      enable() {
+        this.enabled = true;
+        const scene = this.viewer.scene;
+        const globe = scene.globe;
+
+        // Enable globe lighting (sun-based)
+        globe.enableLighting = true;
+        globe.dynamicAtmosphereLighting = true;
+        globe.dynamicAtmosphereLightingFromSun = true;
+
+        // Enable shadows with anti-acne settings
+        scene.shadowMap.enabled = true;
+        scene.shadowMap.darkness = 0.4;
+        scene.shadowMap.softShadows = true;
+        scene.shadowMap.size = 2048;
+        scene.shadowMap.normalOffset = true;
+        scene.shadowMap.fadingEnabled = true;
+        scene.shadowMap.maximumDistance = 10000.0;
+
+        // Globe receives shadows
+        globe.shadows = Cesium.ShadowMode.RECEIVE_ONLY;
+
+        // Apply lighting to tileset
+        this.applyToTileset('realistic');
+
+        // Update UI
+        document.getElementById('chkLighting').checked = true;
+        document.getElementById('quickShadow').classList.add('active');
+
+        console.log('🌅 Dynamic lighting ENABLED');
+      }
+
+      disable() {
+        this.enabled = false;
+        const scene = this.viewer.scene;
+        const globe = scene.globe;
+
+        // Disable globe lighting
+        globe.enableLighting = false;
+        globe.dynamicAtmosphereLighting = false;
+        globe.dynamicAtmosphereLightingFromSun = false;
+
+        // Disable shadows
+        scene.shadowMap.enabled = false;
+        globe.shadows = Cesium.ShadowMode.DISABLED;
+
+        // Reset tileset to bright
+        this.applyToTileset('bright');
+
+        // Update UI
+        document.getElementById('chkLighting').checked = false;
+        document.getElementById('quickShadow').classList.remove('active');
+
+        console.log('🌑 Dynamic lighting DISABLED');
       }
 
       toggle() {
-        this.setEnabled(!this.enabled);
+        if (this.enabled) {
+          this.disable();
+        } else {
+          this.enable();
+        }
+      }
+
+      setEnabled(enabled) {
+        if (enabled) {
+          this.enable();
+        } else {
+          this.disable();
+        }
+      }
+
+      applyToTileset(mode) {
+        if (!this.tileset) return;
+
+        try {
+          if (!this.tileset.imageBasedLighting) return;
+
+          switch(mode) {
+            case 'realistic':
+              // Pure sun lighting - dramatic day/night
+              this.tileset.imageBasedLighting.enabled = false;
+              this.tileset.shadows = Cesium.ShadowMode.ENABLED;
+              break;
+
+            case 'soft':
+              // Subtle ambient with low luminance
+              this.tileset.imageBasedLighting.enabled = true;
+              this.tileset.imageBasedLighting.luminanceAtZenith = 0.02;
+              this.tileset.shadows = Cesium.ShadowMode.ENABLED;
+              break;
+
+            case 'balanced':
+              // Balanced ambient
+              this.tileset.imageBasedLighting.enabled = true;
+              this.tileset.imageBasedLighting.luminanceAtZenith = 0.1;
+              this.tileset.shadows = Cesium.ShadowMode.ENABLED;
+              break;
+
+            case 'bright':
+              // Full ambient - no day/night effect
+              this.tileset.imageBasedLighting.enabled = true;
+              this.tileset.imageBasedLighting.luminanceAtZenith = 0.8;
+              this.tileset.shadows = Cesium.ShadowMode.DISABLED;
+              break;
+          }
+
+          this.ambientMode = mode;
+          console.log(`💡 Applied ${mode} lighting mode`);
+
+        } catch (error) {
+          // Google 3D Tiles have read-only IBL but still respond to globe lighting
+          console.log('ℹ️ Using automatic sun lighting for Google 3D Tiles');
+        }
+      }
+
+      setAmbientMode(mode) {
+        this.applyToTileset(mode);
+        document.getElementById('ambientMode').value = mode;
       }
 
       setTime(hour) {
+        // Create date with specific hour (UTC)
         const now = new Date();
-        now.setHours(Math.floor(hour), (hour % 1) * 60, 0);
+        now.setUTCHours(Math.floor(hour), (hour % 1) * 60, 0, 0);
         this.viewer.clock.currentTime = Cesium.JulianDate.fromDate(now);
+        this.viewer.clock.shouldAnimate = false;
       }
 
-      setQuality(size) {
-        this.viewer.shadowMap.size = parseInt(size);
+      setPresetTime(preset) {
+        const presets = {
+          'dawn': 6,
+          'morning': 9,
+          'noon': 12,
+          'afternoon': 15,
+          'sunset': 18,
+          'dusk': 19.5,
+          'night': 23,
+          'midnight': 0
+        };
+
+        if (presets[preset] !== undefined) {
+          this.setTime(presets[preset]);
+          console.log(`⏰ Time set to ${preset} (${presets[preset]}:00)`);
+        }
+      }
+
+      setShadowQuality(size) {
+        this.viewer.scene.shadowMap.size = parseInt(size);
+      }
+
+      setShadowIntensity(darkness) {
+        this.viewer.scene.shadowMap.darkness = Math.max(0, Math.min(1, darkness));
+      }
+
+      animateTime(enable, speed = 100) {
+        if (enable) {
+          this.viewer.clock.shouldAnimate = true;
+          this.viewer.clock.multiplier = speed;
+          console.log(`⏩ Time animation: ${speed}x`);
+        } else {
+          this.viewer.clock.shouldAnimate = false;
+        }
       }
     }
 
@@ -967,28 +1136,30 @@
           // Set Cesium Ion Token
           Cesium.Ion.defaultAccessToken = CONFIG.CESIUM_TOKEN;
 
-          // Create Viewer
+          // Create Viewer with standard widgets
           this.viewer = new Cesium.Viewer('cesiumContainer', {
-            timeline: false,
-            animation: false,
-            baseLayerPicker: false,
-            geocoder: false,
-            homeButton: false,
-            sceneModePicker: false,
-            navigationHelpButton: false,
-            fullscreenButton: false,
+            timeline: true,
+            animation: true,
+            baseLayerPicker: true,
+            geocoder: true,
+            homeButton: true,
+            sceneModePicker: true,
+            navigationHelpButton: true,
+            fullscreenButton: true,
             vrButton: false,
-            infoBox: false,
-            selectionIndicator: false,
-            terrainProvider: undefined,
+            infoBox: true,
+            selectionIndicator: true,
             requestRenderMode: false,
             maximumRenderTimeChange: Infinity
           });
 
-          // Configure scene
+          // Configure scene with proper sky rendering
           const scene = this.viewer.scene;
           scene.globe.show = false;
           scene.skyAtmosphere.show = true;
+          scene.skyBox.show = true;
+          scene.sun.show = true;
+          scene.moon.show = true;
           scene.fog.enabled = true;
           scene.fog.density = 0.0002;
 
@@ -1010,7 +1181,7 @@
 
           // Initialize controllers
           this.fpController = new FirstPersonController(this.viewer);
-          this.shadowController = new ShadowController(this.viewer);
+          this.lightingController = new LightingController(this.viewer, this.tileset);
           this.adaptiveQuality = new AdaptiveQuality(this.viewer, this.tileset, this.fpsMonitor);
 
           // Fly to start location
@@ -1069,19 +1240,47 @@
           this.fpController.setSensitivity(parseInt(e.target.value));
         });
 
-        // Shadows
-        document.getElementById('chkShadows').addEventListener('change', (e) => {
-          this.shadowController.setEnabled(e.target.checked);
+        // Lighting Controls
+        document.getElementById('chkLighting').addEventListener('change', (e) => {
+          this.lightingController.setEnabled(e.target.checked);
+        });
+
+        // Ambient Mode
+        document.getElementById('ambientMode').addEventListener('change', (e) => {
+          this.lightingController.setAmbientMode(e.target.value);
         });
 
         // Time of Day
         document.getElementById('timeOfDay').addEventListener('input', (e) => {
-          this.shadowController.setTime(parseFloat(e.target.value));
+          this.lightingController.setTime(parseFloat(e.target.value));
+        });
+
+        // Time Preset
+        document.getElementById('timePreset').addEventListener('change', (e) => {
+          if (e.target.value) {
+            this.lightingController.setPresetTime(e.target.value);
+            // Update time slider to match
+            const presetHours = {
+              'dawn': 6, 'morning': 9, 'noon': 12, 'afternoon': 15,
+              'sunset': 18, 'dusk': 19.5, 'night': 23, 'midnight': 0
+            };
+            document.getElementById('timeOfDay').value = presetHours[e.target.value];
+          }
         });
 
         // Shadow Quality
         document.getElementById('shadowQuality').addEventListener('change', (e) => {
-          this.shadowController.setQuality(e.target.value);
+          this.lightingController.setShadowQuality(e.target.value);
+        });
+
+        // Shadow Intensity
+        document.getElementById('shadowIntensity').addEventListener('input', (e) => {
+          this.lightingController.setShadowIntensity(parseInt(e.target.value) / 100);
+        });
+
+        // Animate Time
+        document.getElementById('chkAnimateTime').addEventListener('change', (e) => {
+          this.lightingController.animateTime(e.target.checked, 500);
         });
 
         // Quality Preset
@@ -1121,7 +1320,7 @@
         });
 
         document.getElementById('quickShadow').addEventListener('click', () => {
-          this.shadowController.toggle();
+          this.lightingController.toggle();
         });
 
         document.getElementById('quickQuality').addEventListener('click', () => {
