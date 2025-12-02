@@ -389,10 +389,13 @@
     <button id="panelClose" aria-label="Menü schließen">✕</button>
 
     <h3>🎮 Steuerung</h3>
-    <button class="btn" id="btnFirstPerson">First-Person Modus</button>
+    <button class="btn" id="btnFirstPerson">🎮 First-Person Modus (C)</button>
+    <div id="gamepadStatus" style="padding:8px;border-radius:6px;background:rgba(251,188,4,0.2);margin:10px 0;font-size:12px;">
+      <span style="color:#fbbc04;">🎮 Kein Controller</span>
+    </div>
     <div class="control-row">
       <label>Geschwindigkeit</label>
-      <input type="range" id="moveSpeed" min="1" max="100" value="20">
+      <input type="range" id="moveSpeed" min="1" max="50" value="8">
     </div>
     <div class="control-row">
       <label>Maus-Sensitivität</label>
@@ -475,16 +478,20 @@
 
     <h3>ℹ️ Info</h3>
     <p style="color: #888; font-size: 11px; line-height: 1.5;">
-      <strong>Steuerung:</strong><br>
-      WASD/Pfeiltasten: Bewegen<br>
-      Maus: Umsehen (im FP-Modus)<br>
-      Q/E: Hoch/Runter<br>
-      Shift: Schneller<br>
-      ESC: FP-Modus beenden<br><br>
-      <strong>Beleuchtung:</strong><br>
-      Aktiviere "Dynamische Beleuchtung"<br>
-      für realistischen Tag/Nacht-Zyklus.<br>
-      Nachts wird es dunkel mit Sternen! 🌙
+      <strong>Tastatur:</strong><br>
+      C - First-Person an/aus<br>
+      X - Beleuchtung an/aus<br>
+      WASD - Bewegen<br>
+      Q/E - Hoch/Runter<br>
+      Shift - Schneller<br>
+      ESC - FP-Modus beenden<br><br>
+      <strong>🎮 Controller:</strong><br>
+      A - First-Person an/aus<br>
+      X - Beleuchtung an/aus<br>
+      L-Stick - Bewegen<br>
+      R-Stick - Umsehen<br>
+      Trigger - Hoch/Runter<br>
+      B - Speed Boost
     </p>
   </div>
 
@@ -524,7 +531,7 @@
   <div id="crosshair"></div>
 
   <!-- Mode Indicator -->
-  <div id="modeIndicator">First-Person Modus - ESC zum Beenden</div>
+  <div id="modeIndicator">First-Person Modus aktiv - ESC oder C zum Beenden</div>
 
   <script>
     // ============================================================
@@ -710,183 +717,340 @@
     }
 
     // ============================================================
-    // FIRST PERSON CONTROLLER
+    // INPUT SYSTEM (First-Person + Gamepad + Touch)
     // ============================================================
-    class FirstPersonController {
-      constructor(viewer) {
+    const InputSystem = {
+      state: {
+        moveForward: false, moveBackward: false, moveLeft: false, moveRight: false,
+        moveUp: false, moveDown: false, firstPersonMode: false,
+        moveSpeed: 8.0, heading: 0, pitch: 0
+      },
+      gamepad: { index: -1, lastButtonA: false, lastButtonX: false },
+      camera: null,
+      canvas: null,
+      controller: null,
+      viewer: null,
+      lightingController: null,
+      adaptiveQuality: null,
+      
+      config: {
+        baseMoveSpeed: 8.0,
+        speedMultiplier: 4.0,
+        mouseSensitivity: 0.005,
+        gamepadMoveSpeed: 12.0,
+        gamepadSensitivity: 0.05,
+        gamepadDeadzone: 0.15,
+        invertRightStickX: true,
+        invertRightStickY: true
+      },
+      
+      init(viewer, lightingController, adaptiveQuality) {
         this.viewer = viewer;
-        this.enabled = false;
-        this.state = {
-          position: null,
-          heading: 0,
-          pitch: -15,
-          moveSpeed: 20,
-          sensitivity: 0.15
-        };
-        this.keys = {};
-        this.crosshair = document.getElementById('crosshair');
-        this.modeIndicator = document.getElementById('modeIndicator');
-        this.lastTouchX = 0;
-        this.lastTouchY = 0;
-
-        this.setupEventListeners();
-      }
-
-      setupEventListeners() {
-        document.addEventListener('keydown', (e) => this.onKeyDown(e));
-        document.addEventListener('keyup', (e) => this.onKeyUp(e));
-
-        const canvas = this.viewer.canvas;
-        canvas.addEventListener('click', () => {
-          if (this.enabled && !Utils.isMobile()) {
-            canvas.requestPointerLock();
-          }
-        });
-
-        document.addEventListener('mousemove', (e) => this.onMouseMove(e));
-        document.addEventListener('pointerlockchange', () => this.onPointerLockChange());
-
-        // Touch controls for mobile
-        canvas.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: false });
-        canvas.addEventListener('touchmove', (e) => this.onTouchMove(e), { passive: false });
-      }
-
-      onKeyDown(e) {
-        this.keys[e.code] = true;
+        this.camera = viewer.camera;
+        this.canvas = viewer.scene.canvas;
+        this.controller = viewer.scene.screenSpaceCameraController;
+        this.lightingController = lightingController;
+        this.adaptiveQuality = adaptiveQuality;
         
-        if (e.code === 'Escape' && this.enabled) {
-          this.disable();
+        this.state.heading = this.camera.heading;
+        this.state.pitch = this.camera.pitch;
+        
+        document.addEventListener("keydown", (e) => this.onKeyDown(e));
+        document.addEventListener("keyup", (e) => this.onKeyUp(e));
+        document.addEventListener("mousemove", (e) => this.onMouseMove(e));
+        document.addEventListener("pointerlockchange", () => this.onPointerLockChange());
+        
+        // Touch controls for mobile
+        if (Utils.isMobile()) {
+          this.initTouchControls();
         }
-      }
-
-      onKeyUp(e) {
-        this.keys[e.code] = false;
-      }
-
-      onMouseMove(e) {
-        if (!this.enabled || !document.pointerLockElement) return;
-
-        this.state.heading -= e.movementX * this.state.sensitivity;
-        this.state.pitch -= e.movementY * this.state.sensitivity;
-        this.state.pitch = Utils.clamp(this.state.pitch, -89, 89);
-      }
-
-      onPointerLockChange() {
-        if (!document.pointerLockElement && this.enabled && !Utils.isMobile()) {
-          // Pointer unlocked but still in FP mode
-        }
-      }
-
-      onTouchStart(e) {
-        if (!this.enabled || e.touches.length === 0) return;
-        this.lastTouchX = e.touches[0].clientX;
-        this.lastTouchY = e.touches[0].clientY;
-      }
-
-      onTouchMove(e) {
-        if (!this.enabled || e.touches.length === 0) return;
-        e.preventDefault();
-
-        const touch = e.touches[0];
-        const deltaX = touch.clientX - this.lastTouchX;
-        const deltaY = touch.clientY - this.lastTouchY;
-
-        this.state.heading -= deltaX * this.state.sensitivity * 0.5;
-        this.state.pitch -= deltaY * this.state.sensitivity * 0.5;
-        this.state.pitch = Utils.clamp(this.state.pitch, -89, 89);
-
-        this.lastTouchX = touch.clientX;
-        this.lastTouchY = touch.clientY;
-      }
-
-      enable() {
-        const camera = this.viewer.camera;
-        this.state.position = Cesium.Cartographic.fromCartesian(camera.position);
-        this.state.heading = Cesium.Math.toDegrees(camera.heading);
-        this.state.pitch = Cesium.Math.toDegrees(camera.pitch);
-
-        this.viewer.scene.screenSpaceCameraController.enableInputs = false;
-        this.enabled = true;
-        this.crosshair.style.display = 'block';
-        this.modeIndicator.style.display = 'block';
-
-        if (!Utils.isMobile()) {
-          this.viewer.canvas.requestPointerLock();
-        }
-
-        document.getElementById('btnFirstPerson').textContent = 'FP-Modus beenden';
-        document.getElementById('quickFps').classList.add('active');
-      }
-
-      disable() {
-        this.viewer.scene.screenSpaceCameraController.enableInputs = true;
-        this.enabled = false;
-        this.crosshair.style.display = 'none';
-        this.modeIndicator.style.display = 'none';
-
-        if (document.pointerLockElement) {
-          document.exitPointerLock();
-        }
-
-        document.getElementById('btnFirstPerson').textContent = 'First-Person Modus';
-        document.getElementById('quickFps').classList.remove('active');
-      }
-
-      toggle() {
-        if (this.enabled) {
-          this.disable();
-        } else {
-          this.enable();
-        }
-      }
-
-      update(deltaTime) {
-        if (!this.enabled) return;
-
-        const speed = this.state.moveSpeed * (this.keys['ShiftLeft'] ? 3 : 1);
-        let dx = 0, dy = 0, dz = 0;
-
-        if (this.keys['KeyW'] || this.keys['ArrowUp']) dy = 1;
-        if (this.keys['KeyS'] || this.keys['ArrowDown']) dy = -1;
-        if (this.keys['KeyA'] || this.keys['ArrowLeft']) dx = -1;
-        if (this.keys['KeyD'] || this.keys['ArrowRight']) dx = 1;
-        if (this.keys['KeyQ']) dz = -1;
-        if (this.keys['KeyE'] || this.keys['Space']) dz = 1;
-
-        const headingRad = Cesium.Math.toRadians(this.state.heading);
-        const pitchRad = Cesium.Math.toRadians(this.state.pitch);
-
-        const moveX = (dx * Math.cos(headingRad) - dy * Math.sin(headingRad)) * speed * deltaTime;
-        const moveY = (dx * Math.sin(headingRad) + dy * Math.cos(headingRad)) * speed * deltaTime;
-        const moveZ = dz * speed * deltaTime;
-
-        this.state.position.longitude += Cesium.Math.toRadians(moveX * 0.00001);
-        this.state.position.latitude += Cesium.Math.toRadians(moveY * 0.00001);
-        this.state.position.height += moveZ;
-        this.state.position.height = Math.max(2, this.state.position.height);
-
-        this.viewer.camera.setView({
-          destination: Cesium.Cartesian3.fromRadians(
-            this.state.position.longitude,
-            this.state.position.latitude,
-            this.state.position.height
-          ),
-          orientation: {
-            heading: Cesium.Math.toRadians(this.state.heading),
-            pitch: Cesium.Math.toRadians(this.state.pitch),
-            roll: 0
+        
+        this.setupGamepad();
+        console.log("✅ InputSystem initialized (Keyboard + Mouse + Gamepad + Touch)");
+      },
+      
+      initTouchControls() {
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+        let isTouching = false;
+        
+        this.canvas.addEventListener("touchstart", (e) => {
+          if (this.state.firstPersonMode && e.touches.length === 1) {
+            isTouching = true;
+            lastTouchX = e.touches[0].clientX;
+            lastTouchY = e.touches[0].clientY;
           }
+        }, { passive: true });
+        
+        this.canvas.addEventListener("touchmove", (e) => {
+          if (this.state.firstPersonMode && isTouching && e.touches.length === 1) {
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - lastTouchX;
+            const deltaY = touch.clientY - lastTouchY;
+            
+            this.state.heading -= deltaX * this.config.mouseSensitivity * 0.5;
+            this.state.pitch -= deltaY * this.config.mouseSensitivity * 0.5;
+            this.state.pitch = Utils.clamp(this.state.pitch, -Math.PI/2, Math.PI/2);
+            
+            this.camera.setView({
+              orientation: {
+                heading: this.state.heading,
+                pitch: this.state.pitch,
+                roll: 0
+              }
+            });
+            
+            lastTouchX = touch.clientX;
+            lastTouchY = touch.clientY;
+          }
+        }, { passive: true });
+        
+        this.canvas.addEventListener("touchend", () => {
+          isTouching = false;
+        }, { passive: true });
+        
+        console.log("✅ Touch controls initialized");
+      },
+      
+      onKeyDown(e) {
+        const k = e.key.toLowerCase();
+        
+        // Global shortcuts
+        if (k === "c") { e.preventDefault(); this.toggleFirstPerson(); return; }
+        if (k === "x") { e.preventDefault(); this.lightingController?.toggle(); return; }
+        if (k === "escape" && this.state.firstPersonMode) { e.preventDefault(); this.toggleFirstPerson(); return; }
+        
+        if (!this.state.firstPersonMode) return;
+        
+        switch (k) {
+          case "w": case "arrowup": e.preventDefault(); this.state.moveForward = true; break;
+          case "s": case "arrowdown": e.preventDefault(); this.state.moveBackward = true; break;
+          case "a": case "arrowleft": e.preventDefault(); this.state.moveLeft = true; break;
+          case "d": case "arrowright": e.preventDefault(); this.state.moveRight = true; break;
+          case "q": e.preventDefault(); this.state.moveUp = true; break;
+          case "e": case " ": e.preventDefault(); this.state.moveDown = true; break;
+        }
+        if (e.shiftKey) this.state.moveSpeed = this.config.baseMoveSpeed * this.config.speedMultiplier;
+      },
+      
+      onKeyUp(e) {
+        const k = e.key.toLowerCase();
+        switch (k) {
+          case "w": case "arrowup": this.state.moveForward = false; break;
+          case "s": case "arrowdown": this.state.moveBackward = false; break;
+          case "a": case "arrowleft": this.state.moveLeft = false; break;
+          case "d": case "arrowright": this.state.moveRight = false; break;
+          case "q": this.state.moveUp = false; break;
+          case "e": case " ": this.state.moveDown = false; break;
+        }
+        if (!e.shiftKey) this.state.moveSpeed = this.config.baseMoveSpeed;
+      },
+      
+      onMouseMove(e) {
+        if (!this.state.firstPersonMode || document.pointerLockElement !== this.canvas) return;
+        this.state.heading -= e.movementX * this.config.mouseSensitivity;
+        this.state.pitch -= e.movementY * this.config.mouseSensitivity;
+        this.state.pitch = Utils.clamp(this.state.pitch, -Math.PI/2, Math.PI/2);
+        this.camera.setView({ orientation: { heading: this.state.heading, pitch: this.state.pitch, roll: 0 }});
+      },
+      
+      onPointerLockChange() {
+        if (!document.pointerLockElement && this.state.firstPersonMode && !Utils.isMobile()) {
+          // Pointer lost - stay in FP mode but notify user
+          console.log("⚠️ Pointer lock lost - click to re-engage");
+        }
+      },
+      
+      toggleFirstPerson() {
+        this.state.firstPersonMode = !this.state.firstPersonMode;
+        if (this.state.firstPersonMode) {
+          this.setDefaultControls(false);
+          this.state.heading = this.camera.heading;
+          this.state.pitch = this.camera.pitch;
+          if (!Utils.isMobile()) {
+            try { this.canvas.requestPointerLock(); } catch(e) {}
+          }
+        } else {
+          this.setDefaultControls(true);
+          if (document.pointerLockElement === this.canvas) {
+            try { document.exitPointerLock(); } catch(e) {}
+          }
+        }
+        this.updateUI();
+      },
+      
+      setDefaultControls(enabled) {
+        this.controller.enableRotate = enabled;
+        this.controller.enableTranslate = enabled;
+        this.controller.enableZoom = enabled;
+        this.controller.enableTilt = enabled;
+        this.controller.enableLook = enabled;
+      },
+      
+      updateUI() {
+        const btn = document.getElementById('btnFirstPerson');
+        const crosshair = document.getElementById('crosshair');
+        const modeIndicator = document.getElementById('modeIndicator');
+        const quickFps = document.getElementById('quickFps');
+        
+        if (this.state.firstPersonMode) {
+          if (btn) {
+            btn.textContent = '🚶 FP-Modus beenden (ESC)';
+            btn.classList.add('danger');
+          }
+          if (crosshair) crosshair.style.display = 'block';
+          if (modeIndicator) modeIndicator.style.display = 'block';
+          if (quickFps) quickFps.classList.add('active');
+        } else {
+          if (btn) {
+            btn.textContent = '🎮 First-Person Modus (C)';
+            btn.classList.remove('danger');
+          }
+          if (crosshair) crosshair.style.display = 'none';
+          if (modeIndicator) modeIndicator.style.display = 'none';
+          if (quickFps) quickFps.classList.remove('active');
+        }
+      },
+      
+      // ==================== GAMEPAD ====================
+      setupGamepad() {
+        // Initial scan with delays
+        [100, 500, 1000, 2000].forEach(d => setTimeout(() => this.scanGamepads(), d));
+        // Continuous scan
+        setInterval(() => this.scanGamepads(), 700);
+        
+        window.addEventListener("gamepadconnected", (e) => {
+          console.log(`🎮 Gamepad connected: ${e.gamepad.id}`);
+          this.gamepad.index = e.gamepad.index;
+          this.updateGamepadUI();
         });
-      }
-
+        window.addEventListener("gamepaddisconnected", () => {
+          console.log("🎮 Gamepad disconnected");
+          this.gamepad.index = -1;
+          this.updateGamepadUI();
+        });
+      },
+      
+      scanGamepads() {
+        const gps = navigator.getGamepads ? navigator.getGamepads() : [];
+        let found = false;
+        for (let i = 0; i < gps.length; i++) {
+          if (gps[i]) {
+            if (this.gamepad.index !== i) {
+              this.gamepad.index = i;
+              console.log(`🎮 Found gamepad at index ${i}: ${gps[i].id}`);
+            }
+            found = true;
+            break;
+          }
+        }
+        if (!found && this.gamepad.index !== -1) {
+          this.gamepad.index = -1;
+        }
+        this.updateGamepadUI();
+      },
+      
+      updateGamepadUI() {
+        const statusEl = document.getElementById('gamepadStatus');
+        if (!statusEl) return;
+        
+        if (this.gamepad.index !== -1) {
+          const gp = navigator.getGamepads()[this.gamepad.index];
+          const name = gp ? gp.id.substring(0, 25) : "Controller";
+          statusEl.innerHTML = `<span style="color:#34a853;">🎮 ${name}</span>`;
+          statusEl.style.background = "rgba(52, 168, 83, 0.2)";
+        } else {
+          statusEl.innerHTML = `<span style="color:#fbbc04;">🎮 Kein Controller</span>
+            <button id="detectGamepadBtn" style="float:right;padding:4px 8px;background:#4285f4;color:white;border:none;border-radius:4px;font-size:10px;cursor:pointer;">Suchen</button>`;
+          statusEl.style.background = "rgba(251, 188, 4, 0.2)";
+          
+          const btn = document.getElementById('detectGamepadBtn');
+          if (btn) {
+            btn.onclick = (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              this.scanGamepads();
+            };
+          }
+        }
+      },
+      
+      processGamepad() {
+        if (this.gamepad.index === -1) return;
+        const gps = navigator.getGamepads();
+        const gp = gps[this.gamepad.index];
+        if (!gp) { this.gamepad.index = -1; return; }
+        
+        // A button - Toggle First-Person
+        const aPressed = gp.buttons[0] && gp.buttons[0].pressed;
+        if (aPressed && !this.gamepad.lastButtonA) this.toggleFirstPerson();
+        this.gamepad.lastButtonA = aPressed;
+        
+        // X button - Toggle Lighting
+        const xPressed = gp.buttons[2] && gp.buttons[2].pressed;
+        if (xPressed && !this.gamepad.lastButtonX) this.lightingController?.toggle();
+        this.gamepad.lastButtonX = xPressed;
+        
+        if (!this.state.firstPersonMode) return;
+        
+        // Left stick - Movement
+        const leftX = this.applyDeadzone(gp.axes[0] || 0);
+        const leftY = this.applyDeadzone(gp.axes[1] || 0);
+        
+        // Right stick - Look
+        let rightX = this.applyDeadzone(gp.axes[2] || 0);
+        let rightY = this.applyDeadzone(gp.axes[3] || 0);
+        if (this.config.invertRightStickX) rightX = -rightX;
+        if (this.config.invertRightStickY) rightY = -rightY;
+        
+        // Triggers - Up/Down
+        let leftTrig = 0, rightTrig = 0;
+        if (gp.buttons[6]) leftTrig = gp.buttons[6].value;
+        if (gp.buttons[7]) rightTrig = gp.buttons[7].value;
+        
+        // B button - Speed boost
+        const boost = (gp.buttons[1] && gp.buttons[1].pressed) ? this.config.speedMultiplier : 1.0;
+        
+        // Apply movement
+        if (leftY !== 0) this.camera.moveForward(-leftY * this.config.gamepadMoveSpeed * boost);
+        if (leftX !== 0) this.camera.moveRight(leftX * this.config.gamepadMoveSpeed * boost);
+        if (rightTrig > 0.05) this.camera.moveUp(rightTrig * this.config.gamepadMoveSpeed * boost);
+        if (leftTrig > 0.05) this.camera.moveDown(leftTrig * this.config.gamepadMoveSpeed * boost);
+        
+        // Apply look
+        if (rightX !== 0 || rightY !== 0) {
+          this.state.heading -= rightX * this.config.gamepadSensitivity;
+          this.state.pitch -= rightY * this.config.gamepadSensitivity;
+          this.state.pitch = Utils.clamp(this.state.pitch, -Math.PI/2, Math.PI/2);
+          this.camera.setView({ orientation: { heading: this.state.heading, pitch: this.state.pitch, roll: 0 }});
+        }
+      },
+      
+      applyDeadzone(value) {
+        return Math.abs(value) < this.config.gamepadDeadzone ? 0 : value;
+      },
+      
+      update() {
+        this.processGamepad();
+        if (!this.state.firstPersonMode) return;
+        
+        if (this.state.moveForward) this.camera.moveForward(this.state.moveSpeed);
+        if (this.state.moveBackward) this.camera.moveBackward(this.state.moveSpeed);
+        if (this.state.moveLeft) this.camera.moveLeft(this.state.moveSpeed);
+        if (this.state.moveRight) this.camera.moveRight(this.state.moveSpeed);
+        if (this.state.moveUp) this.camera.moveUp(this.state.moveSpeed);
+        if (this.state.moveDown) this.camera.moveDown(this.state.moveSpeed);
+      },
+      
       setMoveSpeed(speed) {
+        this.config.baseMoveSpeed = speed;
         this.state.moveSpeed = speed;
-      }
-
+      },
+      
       setSensitivity(sensitivity) {
-        this.state.sensitivity = sensitivity / 100;
+        this.config.mouseSensitivity = sensitivity / 10000;
       }
-    }
+    };
 
     // ============================================================
     // LIGHTING CONTROLLER (Dynamic Sun Lighting for Google 3D Tiles)
@@ -1180,9 +1344,11 @@
           this.loadingManager.setProgress(70, 'Initialisiere Controller...');
 
           // Initialize controllers
-          this.fpController = new FirstPersonController(this.viewer);
           this.lightingController = new LightingController(this.viewer, this.tileset);
           this.adaptiveQuality = new AdaptiveQuality(this.viewer, this.tileset, this.fpsMonitor);
+          
+          // Initialize InputSystem (replaces FirstPersonController)
+          InputSystem.init(this.viewer, this.lightingController, this.adaptiveQuality);
 
           // Fly to start location
           this.viewer.camera.flyTo({
@@ -1227,17 +1393,17 @@
       setupUI() {
         // First-Person Button
         document.getElementById('btnFirstPerson').addEventListener('click', () => {
-          this.fpController.toggle();
+          InputSystem.toggleFirstPerson();
         });
 
         // Move Speed
         document.getElementById('moveSpeed').addEventListener('input', (e) => {
-          this.fpController.setMoveSpeed(parseInt(e.target.value));
+          InputSystem.setMoveSpeed(parseInt(e.target.value));
         });
 
         // Mouse Sensitivity
         document.getElementById('mouseSensitivity').addEventListener('input', (e) => {
-          this.fpController.setSensitivity(parseInt(e.target.value));
+          InputSystem.setSensitivity(parseInt(e.target.value));
         });
 
         // Lighting Controls
@@ -1316,7 +1482,7 @@
 
         // Quick Actions (Mobile)
         document.getElementById('quickFps').addEventListener('click', () => {
-          this.fpController.toggle();
+          InputSystem.toggleFirstPerson();
         });
 
         document.getElementById('quickShadow').addEventListener('click', () => {
@@ -1354,12 +1520,13 @@
         // Update FPS
         this.fpsMonitor.update();
 
-        // Update First-Person Controller
-        this.fpController.update(deltaTime);
+        // Update InputSystem (First-Person + Gamepad)
+        InputSystem.update();
 
         // Update VRAM display
-        if (this.tileset) {
-          const usedBytes = this.tileset.statistics?.usedBytes || 0;
+        if (this.tileset && this.tileset.statistics) {
+          const stats = this.tileset.statistics;
+          const usedBytes = (stats.geometryByteLength || 0) + (stats.texturesByteLength || 0);
           const usedMB = usedBytes / (1024 * 1024);
           this.fpsMonitor.updateVRAM(usedMB, this.tileset.cacheBytes / (1024 * 1024));
         }
